@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import TombolWhatsApp from "@/components/TombolWhatsApp";
+import PilihVarianDanJumlah from "@/components/PilihVarianDanJumlah";
 import FormUlasan from "@/components/FormUlasan";
-import { formatRupiah } from "@/lib/format";
+import { toko } from "@/lib/toko";
 import { createServerClient } from "@/lib/supabase/server";
 
 export default async function HalamanDetailProduk({ params }) {
@@ -19,7 +19,23 @@ export default async function HalamanDetailProduk({ params }) {
     notFound();
   }
 
-  // Mengambil data ulasan produk dari Supabase
+  // Mengambil data varian produk dari Supabase jika tersedia (US-12 & US-48)
+  let daftarVarian = [];
+  try {
+    const { data: vData, error: vError } = await supabase
+      .from("varian")
+      .select("*")
+      .eq("produk_id", id)
+      .order("harga", { ascending: true });
+
+    if (!vError && vData) {
+      daftarVarian = vData;
+    }
+  } catch {
+    daftarVarian = [];
+  }
+
+  // Mengambil data ulasan produk dari Supabase (US-38)
   let ulasan = [];
   try {
     const { data: daftarUlasan, error: ulasanError } = await supabase
@@ -71,13 +87,14 @@ export default async function HalamanDetailProduk({ params }) {
 
           <h1 className="text-3xl font-extrabold leading-tight tracking-tight">{produk.nama}</h1>
 
-          <p className="self-start rounded-md bg-harga-latar px-3 py-1 text-xl font-bold text-harga">
-            {formatRupiah(produk.harga)}
-          </p>
-
           <p className="max-w-prose leading-relaxed text-teks-lembut">{produk.deskripsi}</p>
 
-          <TombolWhatsApp produk={produk} />
+          {/* Pemilihan Varian, Jumlah Pembelian, dan Tombol Pesan WhatsApp */}
+          <PilihVarianDanJumlah
+            produk={produk}
+            daftarVarian={daftarVarian}
+            nomorWhatsApp={toko.nomorWhatsApp}
+          />
         </div>
       </article>
 
