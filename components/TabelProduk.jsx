@@ -28,6 +28,10 @@ export default function TabelProduk({ daftarProduk }) {
               <td className="px-4 py-3">{formatRupiah(produk.harga)}</td>
               <td className="px-4 py-3">
                 <div className="flex justify-end gap-2">
+                  {/* US-48: kelola varian harga per ukuran */}
+                  <Tombol href={`/admin/produk/${produk.id}/varian`} varian="garis">
+                    Varian
+                  </Tombol>
                   {/* US-09 dan US-10 (bonus): ubah dan hapus produk */}
                   <Tombol href={`/admin/produk/${produk.id}/ubah`} varian="garis">
                     Ubah
