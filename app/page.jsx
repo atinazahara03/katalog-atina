@@ -1,31 +1,39 @@
-import KartuProduk from "@/components/KartuProduk";
 import BannerPromo from "@/components/BannerPromo";
+import DaftarProdukDenganPaginasi from "@/components/DaftarProdukDenganPaginasi";
 import { toko } from "@/lib/toko";
 import { createServerClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
+const PER_HALAMAN = 12;
+
 export default async function HalamanKatalog() {
-  let daftarProduk = null;
+  let produkAwal = [];
+  let totalHalaman = 1;
+  let adaLagi = false;
   let pesanError = null;
   let bannerPromo = null;
 
   try {
     const supabase = createServerClient();
 
-    // Mengambil daftar produk
-    const { data, error } = await supabase
+    // Ambil halaman pertama produk dengan pembatasan di query database (US-16)
+    const { data, error, count } = await supabase
       .from("produk")
-      .select("*")
-      .order("id", { ascending: true });
+      .select("*", { count: "exact" })
+      .order("id", { ascending: true })
+      .range(0, PER_HALAMAN - 1);
 
     if (error) {
       pesanError = error.message;
     } else {
-      daftarProduk = data;
+      produkAwal = data ?? [];
+      const totalProduk = count ?? 0;
+      totalHalaman = Math.ceil(totalProduk / PER_HALAMAN);
+      adaLagi = totalHalaman > 1;
     }
 
-    // Mengambil banner promo aktif dari Supabase jika tersedia
+    // Ambil banner promo aktif dari Supabase jika tersedia
     const { data: bannerData, error: bannerError } = await supabase
       .from("banner")
       .select("*")
@@ -37,7 +45,6 @@ export default async function HalamanKatalog() {
     if (!bannerError && bannerData) {
       bannerPromo = bannerData;
     } else if (bannerError && bannerError.message?.includes("Could not find the table")) {
-      // Fallback banner promo jika tabel belum dibuat di Supabase
       bannerPromo = {
         judul: `Promo Spesial ${toko.nama}`,
         teks: "Nikmati penawaran produk terbaik dengan kualitas terjamin. Pesan langsung dengan mudah dan cepat melalui WhatsApp!",
@@ -76,16 +83,12 @@ export default async function HalamanKatalog() {
           <div className="rounded-xl border border-garis bg-permukaan p-4 text-sm text-bahaya">
             Gagal memuat daftar produk: {pesanError}
           </div>
-        ) : daftarProduk && daftarProduk.length > 0 ? (
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-            {daftarProduk.map((produk) => (
-              <KartuProduk key={produk.id} produk={produk} />
-            ))}
-          </div>
         ) : (
-          <p className="rounded-xl border border-dashed border-garis py-12 text-center text-sm text-teks-lembut">
-            Belum ada produk
-          </p>
+          <DaftarProdukDenganPaginasi
+            produkAwal={produkAwal}
+            totalHalamanAwal={totalHalaman}
+            adaLagiAwal={adaLagi}
+          />
         )}
       </section>
     </>
