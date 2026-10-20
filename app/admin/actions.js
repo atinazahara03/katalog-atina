@@ -3,6 +3,24 @@
 import { redirect } from "next/navigation";
 import { createSessionClient } from "@/lib/supabase/server";
 
+/**
+ * Memastikan admin sudah login di server sebelum menjalankan Server Action.
+ * Jika belum login, dialihkan ke /admin/login.
+ */
+export async function requireAdmin() {
+  const supabase = await createSessionClient();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    redirect("/admin/login?error=" + encodeURIComponent("Silakan login terlebih dahulu."));
+  }
+
+  return { supabase, user };
+}
+
 export async function login(arg1, arg2) {
   const isActionState = arg2 instanceof FormData;
   const formData = isActionState ? arg2 : arg1;
@@ -48,15 +66,8 @@ export async function gantiPassword(arg1, arg2) {
   const passwordBaru = formData?.get("password_baru");
   const konfirmasiPassword = formData?.get("konfirmasi_password");
 
-  const supabase = await createSessionClient();
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
-
-  if (authError || !user) {
-    redirect("/admin/login?error=" + encodeURIComponent("Silakan login terlebih dahulu."));
-  }
+  // Validasi login di server
+  const { supabase } = await requireAdmin();
 
   if (!passwordBaru || String(passwordBaru).length < 8) {
     const pesan = "Password baru minimal 8 karakter.";
@@ -88,3 +99,4 @@ export async function gantiPassword(arg1, arg2) {
 export const masuk = login;
 export const keluar = logout;
 export const updatePassword = gantiPassword;
+export const verifikasiLoginAdmin = requireAdmin;
