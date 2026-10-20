@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { createSessionClient } from "@/lib/supabase/server";
 
 /**
@@ -94,6 +95,56 @@ export async function gantiPassword(arg1, arg2) {
   const pesanBerhasil = "Password berhasil diperbarui.";
   if (isActionState) return { berhasil: pesanBerhasil };
   redirect("/admin/password?berhasil=" + encodeURIComponent(pesanBerhasil));
+}
+
+export async function tambahProduk(arg1, arg2) {
+  const isActionState = arg2 instanceof FormData;
+  const formData = isActionState ? arg2 : arg1;
+
+  // Pastikan admin login di server
+  const { supabase } = await requireAdmin();
+
+  const nama = String(formData?.get("nama") || "").trim();
+  const hargaRaw = formData?.get("harga");
+  const kategori = String(formData?.get("kategori") || "").trim();
+  const foto_url = String(formData?.get("foto_url") || "").trim();
+  const deskripsi = String(formData?.get("deskripsi") || "").trim();
+
+  // Validasi nama produk
+  if (!nama) {
+    const pesan = "Nama produk wajib diisi.";
+    if (isActionState) return { error: pesan };
+    redirect("/admin/produk/baru?error=" + encodeURIComponent(pesan));
+  }
+
+  // Validasi harga produk
+  const harga = parseInt(hargaRaw, 10);
+  if (isNaN(harga) || harga < 0) {
+    const pesan = "Harga harus berupa angka dan tidak boleh bernilai negatif.";
+    if (isActionState) return { error: pesan };
+    redirect("/admin/produk/baru?error=" + encodeURIComponent(pesan));
+  }
+
+  // Simpan ke tabel produk di Supabase
+  const { error: insertError } = await supabase.from("produk").insert([
+    {
+      nama,
+      harga,
+      kategori: kategori || null,
+      foto_url: foto_url || "/produk/kopi.svg",
+      deskripsi: deskripsi || null,
+    },
+  ]);
+
+  if (insertError) {
+    const pesan = insertError.message || "Gagal menyimpan produk ke database.";
+    if (isActionState) return { error: pesan };
+    redirect("/admin/produk/baru?error=" + encodeURIComponent(pesan));
+  }
+
+  revalidatePath("/");
+  revalidatePath("/admin");
+  redirect("/admin");
 }
 
 export const masuk = login;
