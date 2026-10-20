@@ -1,4 +1,5 @@
 import KartuProduk from "@/components/KartuProduk";
+import BannerPromo from "@/components/BannerPromo";
 import { toko } from "@/lib/toko";
 import { createServerClient } from "@/lib/supabase/server";
 
@@ -7,9 +8,12 @@ export const dynamic = "force-dynamic";
 export default async function HalamanKatalog() {
   let daftarProduk = null;
   let pesanError = null;
+  let bannerPromo = null;
 
   try {
     const supabase = createServerClient();
+
+    // Mengambil daftar produk
     const { data, error } = await supabase
       .from("produk")
       .select("*")
@@ -19,6 +23,28 @@ export default async function HalamanKatalog() {
       pesanError = error.message;
     } else {
       daftarProduk = data;
+    }
+
+    // Mengambil banner promo aktif dari Supabase jika tersedia
+    const { data: bannerData, error: bannerError } = await supabase
+      .from("banner")
+      .select("*")
+      .eq("is_aktif", true)
+      .order("id", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!bannerError && bannerData) {
+      bannerPromo = bannerData;
+    } else if (bannerError && bannerError.message?.includes("Could not find the table")) {
+      // Fallback banner promo jika tabel belum dibuat di Supabase
+      bannerPromo = {
+        judul: `Promo Spesial ${toko.nama}`,
+        teks: "Nikmati penawaran produk terbaik dengan kualitas terjamin. Pesan langsung dengan mudah dan cepat melalui WhatsApp!",
+        gambar_url: "/produk/kopi.svg",
+        tautan: "#judul-produk",
+        label_tombol: "Pesan Sekarang",
+      };
     }
   } catch (err) {
     pesanError = err.message || "Gagal terhubung ke database.";
@@ -33,6 +59,13 @@ export default async function HalamanKatalog() {
         <p className="mt-3 max-w-xl text-lg text-teks-lembut">{toko.tagline}</p>
         <p className="mt-4 text-sm text-teks-lembut">{toko.jamBuka}</p>
       </section>
+
+      {/* Banner Promo Beranda */}
+      {bannerPromo && (
+        <section aria-label="Banner Promosi" className="mb-12">
+          <BannerPromo banner={bannerPromo} />
+        </section>
+      )}
 
       <section aria-labelledby="judul-produk" className="flex flex-col gap-5">
         <h2 id="judul-produk" className="text-xl font-bold">
